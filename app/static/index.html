@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Soccer Club Updates</title>
+  <style>
+    :root { font-family: Inter, system-ui, sans-serif; color:#172033; background:#f4f6f8; --red:#da291c; --navy:#121d2e; --line:#e3e7ed; }
+    * { box-sizing:border-box } body { margin:0 } button,input,select { font:inherit } button { cursor:pointer }
+    [hidden] { display:none!important } .auth { width:min(440px,calc(100%-32px)); margin:72px auto } .auth-card,.panel { background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px #17203310 }
+    .auth-card { padding:28px } .auth h1 { font-size:1.8rem } .tabs { display:flex;gap:8px;margin-bottom:20px } .auth button { min-height:42px;border:0;border-radius:8px;padding:9px 14px;color:#fff;background:var(--navy);font-weight:700 }
+    .auth button.secondary { color:#263248;background:#e9edf4 } label { display:block;margin:16px 0 6px;font-weight:650 } input,select { width:100%;min-height:44px;padding:9px 11px;border:1px solid #ccd4df;border-radius:8px;background:#fff }
+    form > button { width:100%;margin-top:20px } #notice { min-height:24px;color:#17613c } #notice.error { color:#a32132 }
+    .shell { display:grid;grid-template-columns:236px 1fr;min-height:100vh } .sidebar { background:var(--navy);color:#dfe5ef;padding:24px 14px } .brand { display:flex;gap:10px;align-items:center;padding:0 8px 28px;color:#fff;font-weight:800 } .crest { display:grid;width:38px;height:38px;place-items:center;border:2px solid #fff;border-radius:50%;color:#fff;background:var(--red);font-size:.72rem }
+    .nav-label { margin:12px 8px 8px;color:#8592a7;font-size:.68rem;font-weight:800;letter-spacing:.12em } .nav { display:grid;gap:5px } .nav button { display:flex;gap:10px;align-items:center;min-height:44px;border:0;border-radius:9px;padding:0 10px;color:#bcc6d5;background:transparent;text-align:left }
+    .nav button:hover,.nav button[aria-current] { color:#fff;background:#26354a } .workspace { min-width:0 } .topbar { display:flex;align-items:center;justify-content:space-between;min-height:78px;padding:0 38px;border-bottom:1px solid var(--line);background:#fff } .topbar h1 { margin:0;font-size:1.1rem } .topbar p { margin:4px 0 0;color:#8993a3;font-size:.78rem }
+    .top-actions { display:flex;gap:8px }.top-actions button { min-height:40px;border:0;border-radius:8px;padding:8px 12px;color:#263248;background:#edf0f4;font-weight:700 }.top-actions #logout { color:#fff;background:var(--red) }
+    .content { padding:32px 38px 48px }.welcome { display:flex;justify-content:space-between;gap:16px;align-items:end;margin-bottom:20px }.welcome h2 { margin:0 0 5px;font-size:1.7rem }.welcome p { margin:0;color:#7c8797 }.club-select { display:flex;gap:8px }.club-select select { width:150px }
+    .cards { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px }.panel { padding:19px }.metric-label { color:#808c9d;font-size:.78rem }.metric { margin:10px 0 6px;font-size:1.55rem;font-weight:800 }.metric-change { color:#168b65;font-size:.75rem }
+    .main-grid { display:grid;grid-template-columns:1.55fr 1fr;gap:14px }.match-card { background:linear-gradient(135deg,#19283a,#2c3b50);color:#fff }.match-card p { color:#bdc7d5 }.versus { display:flex;justify-content:space-around;align-items:center;padding:22px 8px }.team { text-align:center }.badge { display:grid;width:64px;height:64px;margin:0 auto 10px;place-items:center;border:2px solid #fff;border-radius:50%;background:var(--red);font-weight:900 }.away { background:#b8bbc2;color:#fff } .score { font-size:1.5rem;font-weight:900 }
+    .form-list { display:grid;grid-template-columns:repeat(5,1fr);gap:6px }.form-dot { display:grid;height:34px;place-items:center;border-radius:7px;background:#edf1f5;font-size:.72rem;font-weight:800 }.form-dot.win { background:#e3f5ec;color:#168b65 }.form-dot.loss { background:#fdebe8;color:#c04a40 }.form-dot.draw { background:#fff2d8;color:#9b731e }
+    .news { margin-top:14px }.news-head { display:flex;justify-content:space-between }.news-item { display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:12px;border-top:1px solid #eef1f4;padding:14px 0 }.news-mark { display:grid;width:56px;height:56px;place-items:center;border-radius:10px;background:#f1f3f6;color:var(--red);font-weight:800 }.news-item h3 { margin:0 0 5px;font-size:.92rem }.news-item p { margin:0;font-size:.75rem }.fake-page { min-height:260px }
+    @media(max-width:900px) {.cards{grid-template-columns:repeat(2,1fr)}.main-grid{grid-template-columns:1fr}.shell{grid-template-columns:200px 1fr}}@media(max-width:680px){.shell{display:block}.sidebar{padding:12px}.brand{padding:0 4px 10px}.nav-label{display:none}.nav{display:flex;overflow-x:auto}.nav button{min-width:max-content}.topbar{padding:0 18px}.content{padding:24px 18px}.cards{gap:8px}.welcome{align-items:start;flex-direction:column}.club-select{width:100%}.club-select select{flex:1}}
+  </style>
+</head>
+<body>
+  <main id="auth-layout" class="auth">
+    <h1>Soccer Club Updates</h1><p>Follow your club, fixtures, news and form.</p>
+    <section id="auth-panel" class="auth-card">
+      <h2>Welcome</h2>
+      <div class="tabs"><button id="signin-tab">Sign in</button><button id="signup-tab" class="secondary">Create account</button></div>
+      <form id="signin-form">
+        <label for="username">Username</label><input id="username" autocomplete="username" required>
+        <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <form id="signup-form" hidden>
+        <label for="signup-username">Username</label><input id="signup-username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]+" required>
+        <label for="signup-password">Password</label><input id="signup-password" type="password" minlength="8" maxlength="128" required>
+        <button type="submit">Create account</button>
+      </form>
+    </section>
+  </main>
+  <div id="shell" class="shell" hidden>
+    <aside class="sidebar">
+      <div class="brand"><span class="crest">MU</span><span>Red Devils Hub</span></div>
+      <p class="nav-label">FOLLOW</p>
+      <nav class="nav" aria-label="Main navigation">
+        <button data-view="home" aria-current="true">◉ Overview</button>
+        <button data-view="matches">▦ Matches</button>
+        <button data-view="news">◫ News</button>
+        <button data-view="squad">♙ Squad</button>
+        <button data-view="table">▥ Table</button>
+      </nav>
+      <p class="nav-label">ACCOUNT</p>
+      <nav class="nav"><button data-view="password">⚙ Password</button></nav>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div><h1 id="page-title">Overview</h1><p id="page-subtitle">Manchester United fan updates</p></div>
+        <div class="top-actions"><button id="account">Account</button><button id="logout">Log out</button></div>
+      </header>
+      <main id="content" class="content"></main>
+    </div>
+  </div>
+  <p id="notice" role="status" aria-live="polite"></p>
+  <template id="home-template">
+    <section class="welcome">
+      <div><h2>Good to see you, <span id="welcome-user"></span></h2><p>Manchester United updates for the week ahead.</p></div>
+      <div class="club-select"><select id="league-select" aria-label="League"><option>Premier League</option></select><select id="club-select" aria-label="Club"><option>Manchester United</option></select></div>
+    </section>
+    <section class="cards">
+      <article class="panel"><span class="metric-label">League position</span><p class="metric">8th</p><span class="metric-change">42 points</span></article>
+      <article class="panel"><span class="metric-label">Matches played</span><p class="metric">30</p><span class="metric-change">Premier League</span></article>
+      <article class="panel"><span class="metric-label">Next match</span><p class="metric">Liverpool</p><span class="metric-change">Sunday, 16:30</span></article>
+      <article class="panel"><span class="metric-label">Recent form</span><p class="metric">3W 1D</p><span class="metric-change">Last 5 matches</span></article>
+    </section>
+    <div class="main-grid">
+      <article class="panel match-card"><p>Premier League · Sunday, 16:30</p><div class="versus"><div class="team"><span class="badge">MU</span><strong>Manchester United</strong></div><span class="score">VS</span><div class="team"><span class="badge away">LIV</span><strong>Liverpool</strong></div></div></article>
+      <article class="panel"><h3>Recent form</h3><p>Last five Premier League matches</p><div class="form-list"><span class="form-dot win">W</span><span class="form-dot draw">D</span><span class="form-dot win">W</span><span class="form-dot loss">L</span><span class="form-dot win">W</span></div></article>
+    </div>
+    <section class="panel news"><div class="news-head"><h3>Latest club updates</h3><button class="secondary">View all</button></div>
+      <div class="news-item"><span class="news-mark">TEAM</span><div><h3>Squad preparing for the next Premier League match</h3><p>Team news</p></div><small>42 min ago</small></div>
+      <div class="news-item"><span class="news-mark">PREV</span><div><h3>Manchester United host Liverpool this weekend</h3><p>Match preview</p></div><small>2 hours ago</small></div>
+      <div class="news-item"><span class="news-mark">ACA</span><div><h3>Youth team reaches the semi-final</h3><p>Academy</p></div><small>Yesterday</small></div>
+    </section>
+  </template>
+  <template id="matches-template"><section class="welcome"><div><h2>Matches</h2><p>Upcoming fixtures and recent results.</p></div></section><article class="panel news"><div class="news-item"><span class="news-mark">MU</span><div><h3>Manchester United vs Liverpool</h3><p>Premier League · Old Trafford</p></div><small>Sunday, 16:30</small></div><div class="news-item"><span class="news-mark">MCI</span><div><h3>Manchester City vs Manchester United</h3><p>Premier League · Etihad Stadium</p></div><small>Following Sunday</small></div></article></template>
+  <template id="news-template"><section class="welcome"><div><h2>Club news</h2><p>Important Manchester United updates.</p></div></section><article class="panel news"><div class="news-item"><span class="news-mark">TEAM</span><div><h3>Injury update before the Liverpool match</h3><p>Team news</p></div><small>Today</small></div><div class="news-item"><span class="news-mark">FIRST</span><div><h3>Training gallery from Carrington</h3><p>Gallery</p></div><small>Today</small></div></article></template>
+  <template id="squad-template"><section class="welcome"><div><h2>Squad</h2><p>Featured first-team players.</p></div></section><section class="cards"><article class="panel"><span class="metric-label">Goalkeeper</span><p class="metric">Onana</p><span class="metric-change">First team</span></article><article class="panel"><span class="metric-label">Forward</span><p class="metric">Højlund</p><span class="metric-change">First team</span></article><article class="panel"><span class="metric-label">Midfielder</span><p class="metric">Mainoo</p><span class="metric-change">First team</span></article><article class="panel"><span class="metric-label">Defender</span><p class="metric">Dalot</p><span class="metric-change">First team</span></article></section></template>
+  <template id="table-template"><section class="welcome"><div><h2>Premier League table</h2><p>Demo standings snapshot.</p></div></section><article class="panel news"><div class="news-item"><span class="news-mark">1</span><div><h3>Arsenal</h3><p>Played 30 · Goal difference +45</p></div><strong>67 pts</strong></div><div class="news-item"><span class="news-mark">8</span><div><h3>Manchester United</h3><p>Played 30 · Goal difference +3</p></div><strong>42 pts</strong></div></article></template>
+  <template id="password-template"><section class="welcome"><div><h2>Change password</h2><p>Update your account password.</p></div></section><article class="panel"><form id="password-form"><label for="current-password">Current password</label><input id="current-password" type="password" required><label for="new-password">New password</label><input id="new-password" type="password" minlength="8" required><button type="submit">Update password</button></form><p id="demo-notice" hidden>The demo account cannot change its password.</p></article></template>
+  <script>
+    const authLayout=document.querySelector("#auth-layout"),authPanel=document.querySelector("#auth-panel"),shell=document.querySelector("#shell"),content=document.querySelector("#content"),notice=document.querySelector("#notice"),tokenKey="soccer-access-token";
+    const viewTitles={home:["Overview","Manchester United fan updates"],matches:["Matches","Fixtures and recent results"],news:["Club news","Latest Manchester United updates"],squad:["Squad","Featured first-team players"],table:["Premier League table","Demo standings snapshot"],password:["Account","Update your password"]};
+    function showNotice(message,kind=""){notice.textContent=message;notice.className=kind}
+    async function request(path,options={}){const headers=new Headers(options.headers||{});if(options.body)headers.set("Content-Type","application/json");const token=sessionStorage.getItem(tokenKey);if(token)headers.set("Authorization",`Bearer ${token}`);const response=await fetch(path,{...options,headers});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"Request failed");return data}
+    function showSignedOut(){sessionStorage.removeItem(tokenKey);shell.hidden=true;authLayout.hidden=false;document.querySelector("#signin-form").hidden=false;document.querySelector("#signup-form").hidden=true}
+    function setView(view){const template=document.querySelector(`#${view}-template`);if(!template)return;const title=viewTitles[view];document.querySelector("#page-title").textContent=title[0];document.querySelector("#page-subtitle").textContent=title[1];content.replaceChildren(template.content.cloneNode(true));document.querySelectorAll(".nav button").forEach(button=>{if(button.dataset.view===view)button.setAttribute("aria-current","true");else button.removeAttribute("aria-current")});if(view==="home"){content.querySelector("#welcome-user").textContent=currentUser}if(view==="password"){bindPasswordForm()}}
+    async function showSignedIn(){const account=await request("/auth/account");currentUser=account.username;authLayout.hidden=true;shell.hidden=false;setView("home")}
+    let currentUser="";
+    document.querySelector("#signin-tab").onclick=()=>{document.querySelector("#signin-form").hidden=false;document.querySelector("#signup-form").hidden=true};
+    document.querySelector("#signup-tab").onclick=()=>{document.querySelector("#signin-form").hidden=true;document.querySelector("#signup-form").hidden=false};
+    document.querySelector("#signin-form").onsubmit=async event=>{event.preventDefault();const formElement=event.currentTarget;try{const result=await request("/auth/login",{method:"POST",body:JSON.stringify({username:document.querySelector("#username").value,password:document.querySelector("#password").value})});sessionStorage.setItem(tokenKey,result.access_token);formElement.reset();await showSignedIn();showNotice("You are signed in.","success")}catch(error){showNotice(error.message,"error")}};
+    document.querySelector("#signup-form").onsubmit=async event=>{event.preventDefault();const formElement=event.currentTarget;try{const username=document.querySelector("#signup-username").value,password=document.querySelector("#signup-password").value;await request("/auth/signup",{method:"POST",body:JSON.stringify({username,password})});const result=await request("/auth/login",{method:"POST",body:JSON.stringify({username,password})});sessionStorage.setItem(tokenKey,result.access_token);formElement.reset();await showSignedIn();showNotice("Account created and signed in.","success")}catch(error){showNotice(error.message,"error")}};
+    document.querySelectorAll(".nav button").forEach(button=>button.onclick=()=>setView(button.dataset.view));
+    document.querySelector("#logout").onclick=()=>{showSignedOut();showNotice("You are signed out.","success")};
+    document.querySelector("#account").onclick=()=>setView("password");
+    function bindPasswordForm(){const form=content.querySelector("#password-form");if(!form)return;form.onsubmit=async event=>{event.preventDefault();try{const result=await request("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:document.querySelector("#current-password").value,new_password:document.querySelector("#new-password").value})});showSignedOut();showNotice(`${result.message}. Sign in with your new password.`,"success")}catch(error){showNotice(error.message,"error")}}}
+    if(sessionStorage.getItem(tokenKey)){showSignedIn().catch(()=>showSignedOut())}
+  </script>
+</body>
+</html>

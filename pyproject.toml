@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soccer-club-updates"
+version = "0.1.0"
+description = "A fan dashboard for EPL soccer club updates"
+requires-python = ">=3.12"
+dependencies = ["fastapi>=0.115,<1", "PyJWT>=2.10,<3", "uvicorn[standard]>=0.34,<1"]
+
+[project.optional-dependencies]
+test = ["httpx>=0.28,<1", "pytest>=8.3,<9"]
+browser-test = ["playwright==1.51.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["static/*.html"]

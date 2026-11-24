@@ -1,0 +1,62 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "Soccer Club Updates"
+      DEMO_USERNAME: "${DEMO_USERNAME:-fan}"
+      DEMO_PASSWORD: "${DEMO_PASSWORD:-change-me}"
+      JWT_SECRET: "${JWT_SECRET:-local-development-secret-change-me}"
+      DATABASE_PATH: "${DATABASE_PATH:-/fan-data/accounts.sqlite3}"
+      API_STATS_DB_PATH: "${API_STATS_DB_PATH:-/api-data/api_calls.db}"
+    volumes:
+      - fan_data:/fan-data
+      - api_data:/api-data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  test:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      DEMO_USERNAME: fan
+      DEMO_PASSWORD: change-me
+      JWT_SECRET: test-secret-for-soccer-updates-tests
+      DATABASE_PATH: /tmp/accounts.sqlite3
+      API_STATS_DB_PATH: /workspace/api_calls.db
+    command: sh -c "pip install --no-cache-dir '.[test]' && pytest tests"
+
+  browser-test:
+    image: mcr.microsoft.com/playwright/python:v1.51.0-noble
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    environment:
+      SOCCER_BASE_URL: http://browser-api:8000
+    command: sh -c "pip install --no-cache-dir '.[test,browser-test]' && pytest browser_tests"
+    depends_on:
+      browser-api:
+        condition: service_healthy
+
+  browser-api:
+    build: .
+    environment:
+      DEMO_USERNAME: fan
+      DEMO_PASSWORD: change-me
+      JWT_SECRET: browser-test-secret-for-soccer-updates
+      DATABASE_PATH: /tmp/accounts.sqlite3
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  fan_data:
+  api_data:
