@@ -20,6 +20,10 @@ Open `http://localhost:8000/`. Create an account or use the demo login `fan` / `
 - Overview, Matches, and Table use provider-backed league data. News and Squad explicitly remain outside this integration.
 - football-data.org Free includes Premier League fixtures and league tables; goal scorers are not included in Free, so the collector does not request or require paid-tier event data. The normalized event schema retains source minute, period, and timestamp precision if a supported source is added later.
 
+## Account and favourite team
+
+Signed-in users can choose a favourite team from the cached league teams on the Account page. The preference is stored per authenticated username in the account database; the Overview highlights that team's standings row, and its navigation entry opens the team's standing and recent/upcoming matches. The API exposes the saved `favorite_team_id` through `GET /auth/account` and accepts `PATCH /auth/account` with a `favorite_team_id` to set it or `null` to clear it. A team must exist in the current cached league snapshot; saving preferences does not call football-data.org.
+
 ## Local provider configuration
 
 Compose reads a local `.env` file automatically. Copy the example and add your football-data.org token locally; do not share the token or commit `.env`:
