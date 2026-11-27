@@ -149,6 +149,17 @@ def test_favorite_team_selection_navigation_and_overview():
             expect(page.locator("#favorite-content")).not_to_contain_text("Unrelated")
             expect(page.locator("#favorite-content .favorite-row")).to_contain_text("Favourite")
 
+            page.get_by_role("button", name="Matches").click()
+            expect(page.locator("#matches-content tbody tr")).to_have_count(24)
+            expect(page.locator("#matches-content tbody tr.favorite-match-row")).to_have_count(22)
+            expect(page.locator("#matches-content .favorite-marker")).to_have_count(22)
+
+            page.get_by_role("button", name="Table").click()
+            expect(page.locator("#table-content tbody tr")).to_have_count(20)
+            expect(page.locator("#table-content tbody tr.favorite-row")).to_have_count(1)
+            expect(page.locator("#table-content tr.favorite-row")).to_contain_text("Arsenal")
+            expect(page.locator("#table-content tr.favorite-row")).to_contain_text("Favourite")
+
             page.get_by_role("button", name="Overview").click()
             expect(page.locator('#overview-content [aria-label="All league standings"] tbody tr')).to_have_count(20)
             expect(page.locator("#overview-content tr.favorite-row")).to_contain_text("Arsenal")
@@ -215,7 +226,7 @@ def test_timezone_selection_formats_timestamps_and_persists():
 
             expected_kolkata = page.evaluate(
                 """new Intl.DateTimeFormat(undefined, {
-                    year: "numeric", month: "short", day: "numeric", hour: "numeric",
+                    weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric",
                     minute: "2-digit", timeZone: "Asia/Kolkata", timeZoneName: "short"
                 }).format(new Date("2026-03-08T06:30:00Z"))"""
             )
@@ -232,13 +243,13 @@ def test_timezone_selection_formats_timestamps_and_persists():
 
             expected_before_dst = page.evaluate(
                 """new Intl.DateTimeFormat(undefined, {
-                    year: "numeric", month: "short", day: "numeric", hour: "numeric",
+                    weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric",
                     minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short"
                 }).format(new Date("2026-03-08T06:30:00Z"))"""
             )
             expected_after_dst = page.evaluate(
                 """new Intl.DateTimeFormat(undefined, {
-                    year: "numeric", month: "short", day: "numeric", hour: "numeric",
+                    weekday: "short", year: "numeric", month: "short", day: "numeric", hour: "numeric",
                     minute: "2-digit", timeZone: "America/New_York", timeZoneName: "short"
                 }).format(new Date("2026-03-08T07:30:00Z"))"""
             )
