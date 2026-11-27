@@ -10,14 +10,31 @@ services:
       JWT_SECRET: "${JWT_SECRET:-local-development-secret-change-me}"
       DATABASE_PATH: "${DATABASE_PATH:-/fan-data/accounts.sqlite3}"
       API_STATS_DB_PATH: "${API_STATS_DB_PATH:-/api-data/api_calls.db}"
+      DATA_COLLECTION_MODE: "${DATA_COLLECTION_MODE:-once}"
     volumes:
       - fan_data:/fan-data
       - api_data:/api-data
+    depends_on:
+      collector:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
       interval: 10s
       timeout: 3s
       retries: 3
+
+  collector:
+    build: .
+    command: ["python", "-m", "app.collector"]
+    restart: on-failure
+    environment:
+      DATABASE_PATH: "${DATABASE_PATH:-/fan-data/accounts.sqlite3}"
+      FOOTBALL_DATA_API_TOKEN: "${FOOTBALL_DATA_API_TOKEN:-}"
+      FOOTBALL_DATA_BASE_URL: "${FOOTBALL_DATA_BASE_URL:-https://api.football-data.org/v4}"
+      FOOTBALL_DATA_COMPETITION_CODE: "${FOOTBALL_DATA_COMPETITION_CODE:-PL}"
+      DATA_COLLECTION_MODE: "${DATA_COLLECTION_MODE:-once}"
+    volumes:
+      - fan_data:/fan-data
 
   test:
     build: .
@@ -29,7 +46,8 @@ services:
       DEMO_PASSWORD: change-me
       JWT_SECRET: test-secret-for-soccer-updates-tests
       DATABASE_PATH: /tmp/accounts.sqlite3
-      API_STATS_DB_PATH: /workspace/api_calls.db
+      API_STATS_DB_PATH: /tmp/api_calls.db
+      DATA_COLLECTION_MODE: once
     command: sh -c "pip install --no-cache-dir '.[test]' && pytest tests"
 
   browser-test:
@@ -46,11 +64,16 @@ services:
 
   browser-api:
     build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
     environment:
       DEMO_USERNAME: fan
       DEMO_PASSWORD: change-me
       JWT_SECRET: browser-test-secret-for-soccer-updates
-      DATABASE_PATH: /tmp/accounts.sqlite3
+      DATABASE_PATH: /tmp/browser-accounts.sqlite3
+      DATA_COLLECTION_MODE: once
+    command: sh -c "python -m browser_tests.seed_data && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"]
       interval: 2s

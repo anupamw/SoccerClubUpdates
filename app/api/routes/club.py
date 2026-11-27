@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.core.football_data import get_league_data
 
 router = APIRouter(prefix="/api/v1", tags=["club"])
 
@@ -10,38 +11,34 @@ class ClubSelection(BaseModel):
     club: str
 
 
-CLUBS = {
-    ("Premier League", "Manchester United"): {
-        "club": "Manchester United",
-        "league": "Premier League",
-        "accent": "#da291c",
-        "position": 8,
-        "points": 42,
-        "played": 30,
-        "form": ["win", "draw", "win", "loss", "win"],
-        "next_match": {"competition": "Premier League", "opponent": "Liverpool", "date": "Sunday, 16:30", "venue": "Old Trafford"},
-        "updates": [
-            {"category": "Team news", "title": "Squad preparing for the next Premier League match", "time": "42 min ago"},
-            {"category": "Match preview", "title": "Manchester United host Liverpool this weekend", "time": "2 hours ago"},
-            {"category": "Academy", "title": "Youth team reaches the semi-final", "time": "Yesterday"},
-        ],
-    }
-}
-
-
 @router.get("/clubs")
 def clubs() -> dict:
-    return {"leagues": [{"name": "Premier League", "clubs": ["Manchester United"]}]}
+    data = get_league_data()
+    return {
+        "leagues": (
+            [{"name": data["competition"]["name"], "clubs": [team["name"] for team in data["teams"]]}]
+            if data["competition"] is not None
+            else []
+        ),
+        "collection_status": data["collection_status"],
+    }
 
 
 @router.post("/club/select")
 def select_club(selection: ClubSelection) -> dict:
-    club = CLUBS.get((selection.league, selection.club))
-    if club is None:
+    data = get_league_data()
+    team = next((item for item in data["teams"] if item["name"] == selection.club), None)
+    if data["competition"] is None or data["competition"]["name"] != selection.league or team is None:
         raise HTTPException(status_code=404, detail="That club is not available yet")
-    return club
+    return {"club": team["name"], "league": data["competition"]["name"], "crest": team["crest"]}
 
 
 @router.get("/club/feed")
 def club_feed() -> dict:
-    return CLUBS[("Premier League", "Manchester United")]
+    data = get_league_data()
+    return {
+        "updates": [],
+        "available": False,
+        "message": "Club news is not collected by this data source",
+        "collection_status": data["collection_status"],
+    }

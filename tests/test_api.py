@@ -33,21 +33,24 @@ def test_signup_login_account_password_change(client):
     assert client.post("/auth/login", json={"username": username, "password": new_password}).status_code == 200
 
 
-def test_club_feed_is_restricted_to_epl_manchester_united(client):
+def test_league_endpoints_use_collected_data_and_news_is_out_of_scope(client):
     clubs = client.get("/api/v1/clubs").json()
-    assert clubs == {"leagues": [{"name": "Premier League", "clubs": ["Manchester United"]}]}
+    assert clubs["leagues"] == []
+    assert clubs["collection_status"]["freshness"] == "unavailable"
+    assert client.get("/api/v1/league").json()["collection_status"]["freshness"] == "unavailable"
+    assert client.get("/api/v1/league/matches").json()["matches"] == []
+    assert client.get("/api/v1/league/standings").json()["standings"] == []
     selection = client.post("/api/v1/club/select", json={"league": "Premier League", "club": "Manchester United"})
-    assert selection.status_code == 200
-    assert selection.json()["club"] == "Manchester United"
-    assert client.post("/api/v1/club/select", json={"league": "La Liga", "club": "Barcelona"}).status_code == 404
+    assert selection.status_code == 404
     feed = client.get("/api/v1/club/feed").json()
-    assert len(feed["updates"]) == 3
+    assert feed["updates"] == []
+    assert feed["available"] is False
 
 
 def test_dashboard_and_stats(client):
     page = client.get("/")
     assert page.status_code == 200
     assert "Soccer Club Updates" in page.text
-    assert "Manchester United" in page.text
+    assert "Premier League standings" in page.text
     stats = client.get("/api/v1/debugstats").json()
     assert "total_calls" in stats

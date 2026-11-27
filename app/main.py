@@ -10,6 +10,7 @@ from app.api.router import api_router
 from app.api.routes.debug_stats import DEBUG_STATS_PATH
 from app.core.config import get_settings
 from app.core.database import initialize_api_call_database, record_api_call
+from app.core.football_data import initialize_league_database
 
 
 static_dir = Path(__file__).parent / "static"
@@ -18,6 +19,7 @@ static_dir = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     initialize_api_call_database()
+    initialize_league_database()
     yield
 
 
