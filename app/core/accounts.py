@@ -46,8 +46,19 @@ def _connect() -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)")
     connection.execute(
-        "CREATE TABLE IF NOT EXISTS user_preferences (username TEXT PRIMARY KEY, favorite_team_id INTEGER)"
+        """CREATE TABLE IF NOT EXISTS user_preferences (
+               username TEXT PRIMARY KEY,
+               favorite_team_id INTEGER,
+               timezone_name TEXT NOT NULL DEFAULT 'UTC'
+           )"""
     )
+    preference_columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(user_preferences)")
+    }
+    if "timezone_name" not in preference_columns:
+        connection.execute(
+            "ALTER TABLE user_preferences ADD COLUMN timezone_name TEXT NOT NULL DEFAULT 'UTC'"
+        )
     return connection
 
 
@@ -62,13 +73,28 @@ def get_favorite_team_id(username: str) -> int | None:
 
 def set_favorite_team_id(username: str, team_id: int | None) -> None:
     with closing(_connect()) as connection, connection:
-        if team_id is None:
-            connection.execute("DELETE FROM user_preferences WHERE username = ?", (username,))
-            return
         connection.execute(
             """INSERT INTO user_preferences (username, favorite_team_id) VALUES (?, ?)
                ON CONFLICT(username) DO UPDATE SET favorite_team_id = excluded.favorite_team_id""",
             (username, team_id),
+        )
+
+
+def get_timezone_name(username: str) -> str:
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT timezone_name FROM user_preferences WHERE username = ?",
+            (username,),
+        ).fetchone()
+    return "UTC" if row is None else row["timezone_name"]
+
+
+def set_timezone_name(username: str, timezone_name: str) -> None:
+    with closing(_connect()) as connection, connection:
+        connection.execute(
+            """INSERT INTO user_preferences (username, timezone_name) VALUES (?, ?)
+               ON CONFLICT(username) DO UPDATE SET timezone_name = excluded.timezone_name""",
+            (username, timezone_name),
         )
 
 

@@ -1,3 +1,5 @@
+import sqlite3
+
 from fastapi.testclient import TestClient
 import pytest
 
@@ -109,6 +111,105 @@ def test_favorite_team_preferences_are_authenticated_and_isolated(client):
     )
     assert cleared.status_code == 200
     assert cleared.json()["favorite_team_id"] is None
+
+
+def test_timezone_preference_defaults_validates_and_preserves_favourite(client):
+    seed_league()
+    headers = signup_and_get_headers(client, "timezone-fan")
+    other_headers = signup_and_get_headers(client, "other-timezone-fan")
+
+    account = client.get("/auth/account", headers=headers)
+    assert account.json()["timezone_name"] == "UTC"
+    assert client.get("/auth/account", headers=other_headers).json()["timezone_name"] == "UTC"
+
+    favorite = client.patch(
+        "/auth/account",
+        headers=headers,
+        json={"favorite_team_id": 1},
+    )
+    assert favorite.json()["favorite_team_id"] == 1
+
+    saved = client.patch(
+        "/auth/account",
+        headers=headers,
+        json={"timezone_name": "Asia/Kolkata"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["timezone_name"] == "Asia/Kolkata"
+    assert saved.json()["favorite_team_id"] == 1
+    assert client.get("/auth/account", headers=headers).json()["timezone_name"] == "Asia/Kolkata"
+    assert client.get("/auth/account", headers=other_headers).json()["timezone_name"] == "UTC"
+
+    invalid = client.patch(
+        "/auth/account",
+        headers=headers,
+        json={"timezone_name": "Mars/Olympus_Mons"},
+    )
+    assert invalid.status_code == 422
+    assert client.get("/auth/account", headers=headers).json()["timezone_name"] == "Asia/Kolkata"
+
+    reset = client.patch(
+        "/auth/account",
+        headers=headers,
+        json={"timezone_name": None},
+    )
+    assert reset.json()["timezone_name"] == "UTC"
+    assert reset.json()["favorite_team_id"] == 1
+
+
+def test_timezone_preference_requires_authentication(client):
+    assert client.patch("/auth/account", json={"timezone_name": "Asia/Kolkata"}).status_code == 401
+
+
+def test_timezone_options_require_authentication_and_include_iana_names(client):
+    assert client.get("/auth/timezones").status_code == 401
+    headers = signup_and_get_headers(client, "timezone-options")
+    response = client.get("/auth/timezones", headers=headers)
+    assert response.status_code == 200
+    assert {"UTC", "Asia/Kolkata", "America/New_York"} <= set(response.json()["timezones"])
+
+
+def test_demo_user_can_save_timezone(client):
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    login = client.post(
+        "/auth/login",
+        json={"username": settings.demo_username, "password": settings.demo_password},
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    saved = client.patch(
+        "/auth/account",
+        headers=headers,
+        json={"timezone_name": "Asia/Kolkata"},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["can_change_password"] is False
+    assert client.get("/auth/account", headers=headers).json()["timezone_name"] == "Asia/Kolkata"
+
+
+def test_existing_preferences_database_gets_timezone_default(tmp_path, monkeypatch):
+    database_path = tmp_path / "accounts.sqlite3"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "CREATE TABLE user_preferences (username TEXT PRIMARY KEY, favorite_team_id INTEGER)"
+        )
+        connection.execute(
+            "INSERT INTO user_preferences (username, favorite_team_id) VALUES (?, ?)",
+            ("legacy-fan", 1),
+        )
+    monkeypatch.setenv("DATABASE_PATH", str(database_path))
+    monkeypatch.setenv("API_STATS_DB_PATH", str(tmp_path / "api_calls.db"))
+    monkeypatch.setenv("JWT_SECRET", "test-secret-for-soccer-updates-tests")
+
+    with TestClient(app) as legacy_client:
+        headers = signup_and_get_headers(legacy_client, "legacy-fan")
+        account = legacy_client.get("/auth/account", headers=headers)
+
+    assert account.status_code == 200
+    assert account.json()["favorite_team_id"] == 1
+    assert account.json()["timezone_name"] == "UTC"
 
 
 def test_favorite_team_requires_cached_known_team(client):

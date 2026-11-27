@@ -24,6 +24,8 @@ Open `http://localhost:8000/`. Create an account or use the demo login `fan` / `
 
 Signed-in users can choose a favourite team from the cached league teams on the Account page. The preference is stored per authenticated username in the account database; the Overview highlights that team's standings row, and its navigation entry opens the team's standing and recent/upcoming matches. The API exposes the saved `favorite_team_id` through `GET /auth/account` and accepts `PATCH /auth/account` with a `favorite_team_id` to set it or `null` to clear it. A team must exist in the current cached league snapshot; saving preferences does not call football-data.org.
 
+Users can also select an IANA timezone on the Account page. Match kickoff and data update timestamps remain stored and returned in UTC, and are converted to the saved timezone for display. Existing accounts default to UTC. The authenticated `GET /auth/timezones` endpoint supplies selector choices; `GET /auth/account` exposes `timezone_name`, and a partial `PATCH /auth/account` update accepts a valid IANA timezone name or `null` to reset it to UTC.
+
 ## Local provider configuration
 
 Compose reads a local `.env` file automatically. Copy the example and add your football-data.org token locally; do not share the token or commit `.env`:

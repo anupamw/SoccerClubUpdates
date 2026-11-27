@@ -1,5 +1,6 @@
 import secrets
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError, available_timezones
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -29,7 +30,8 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UpdateAccountRequest(BaseModel):
-    favorite_team_id: int | None = Field(..., gt=0)
+    favorite_team_id: int | None = Field(default=None, gt=0)
+    timezone_name: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class LoginResponse(BaseModel):
@@ -41,6 +43,11 @@ class AccountResponse(BaseModel):
     username: str
     can_change_password: bool
     favorite_team_id: int | None
+    timezone_name: str
+
+
+class TimeZoneOptionsResponse(BaseModel):
+    timezones: list[str]
 
 
 @router.post("/signup", status_code=201)
@@ -73,12 +80,18 @@ def login(payload: LoginRequest) -> LoginResponse:
     return LoginResponse(access_token=token)
 
 
+@router.get("/timezones", response_model=TimeZoneOptionsResponse)
+def timezones(_subject: str = Depends(get_authenticated_subject)) -> TimeZoneOptionsResponse:
+    return TimeZoneOptionsResponse(timezones=sorted(available_timezones() | {"UTC"}))
+
+
 @router.get("/account", response_model=AccountResponse)
 def account(subject: str = Depends(get_authenticated_subject)) -> AccountResponse:
     return AccountResponse(
         username=subject,
         can_change_password=accounts.get_account(subject) is not None,
         favorite_team_id=accounts.get_favorite_team_id(subject),
+        timezone_name=accounts.get_timezone_name(subject),
     )
 
 
@@ -87,17 +100,29 @@ def update_account(
     payload: UpdateAccountRequest,
     subject: str = Depends(get_authenticated_subject),
 ) -> AccountResponse:
-    if payload.favorite_team_id is not None:
+    updated_fields = payload.model_fields_set
+    if "favorite_team_id" in updated_fields and payload.favorite_team_id is not None:
         league = football_data.get_league_data()
         if league["competition"] is None or not league["teams"]:
             raise HTTPException(status_code=503, detail="League data is unavailable; try again after collection")
         if not any(team["id"] == payload.favorite_team_id for team in league["teams"]):
             raise HTTPException(status_code=422, detail="Favourite team is not in the current league data")
-    accounts.set_favorite_team_id(subject, payload.favorite_team_id)
+    timezone_name = None
+    if "timezone_name" in updated_fields:
+        timezone_name = payload.timezone_name or "UTC"
+        try:
+            ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise HTTPException(status_code=422, detail="Timezone must be a valid IANA timezone") from None
+    if "favorite_team_id" in updated_fields:
+        accounts.set_favorite_team_id(subject, payload.favorite_team_id)
+    if timezone_name is not None:
+        accounts.set_timezone_name(subject, timezone_name)
     return AccountResponse(
         username=subject,
         can_change_password=accounts.get_account(subject) is not None,
-        favorite_team_id=payload.favorite_team_id,
+        favorite_team_id=accounts.get_favorite_team_id(subject),
+        timezone_name=accounts.get_timezone_name(subject),
     )
 
 

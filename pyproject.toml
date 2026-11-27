@@ -7,7 +7,7 @@ name = "soccer-club-updates"
 version = "0.1.0"
 description = "A fan dashboard for EPL soccer club updates"
 requires-python = ">=3.12"
-dependencies = ["fastapi>=0.115,<1", "PyJWT>=2.10,<3", "uvicorn[standard]>=0.34,<1"]
+dependencies = ["fastapi>=0.115,<1", "PyJWT>=2.10,<3", "tzdata>=2024.1", "uvicorn[standard]>=0.34,<1"]
 
 [project.optional-dependencies]
 test = ["httpx>=0.28,<1", "pytest>=8.3,<9"]
