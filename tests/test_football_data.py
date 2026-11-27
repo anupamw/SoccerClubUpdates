@@ -99,15 +99,6 @@ def provider_payloads():
                     "awayTeam": {"id": 2, "name": "Manchester United"},
                     "venue": "Emirates Stadium",
                     "score": {"fullTime": {"home": 2, "away": 1}},
-                    "goals": [
-                        {
-                            "minute": 12,
-                            "injuryTime": None,
-                            "type": "PENALTY",
-                            "team": {"id": 1, "name": "Arsenal"},
-                            "scorer": {"id": 99, "name": "Test Scorer"},
-                        }
-                    ],
                 }
             ]
         },
@@ -131,8 +122,7 @@ class FakeResponse:
         return self.data
 
 
-def test_collection_normalizes_data_and_is_idempotent(database, monkeypatch):
-    payloads = provider_payloads()
+def patch_collection_provider(monkeypatch, payloads):
     requests = []
 
     def fake_urlopen(request, timeout):
@@ -144,6 +134,12 @@ def test_collection_normalizes_data_and_is_idempotent(database, monkeypatch):
 
     monkeypatch.setattr(football_data, "urlopen", fake_urlopen)
     monkeypatch.setattr(football_data.time, "sleep", lambda _: None)
+    return requests
+
+
+def test_collection_normalizes_data_and_is_idempotent(database, monkeypatch):
+    payloads = provider_payloads()
+    requests = patch_collection_provider(monkeypatch, payloads)
 
     assert football_data.collect_league()["status"] == "success"
     assert football_data.collect_league()["status"] == "success"
@@ -164,6 +160,34 @@ def test_collection_normalizes_data_and_is_idempotent(database, monkeypatch):
         assert connection.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 1
         assert connection.execute("SELECT COUNT(*) FROM match_events").fetchone()[0] == 0
         assert connection.execute("SELECT COUNT(*) FROM standings").fetchone()[0] == 40
+
+
+def test_collection_persists_provider_goal_timestamps(database, monkeypatch):
+    payloads = provider_payloads()
+    payloads["/competitions/PL/matches?season=2026"]["matches"][0]["goals"] = [
+        {
+            "minute": 12,
+            "type": "REGULAR",
+            "team": {"id": 1, "name": "Arsenal"},
+            "scorer": {"id": 99, "name": "Test Scorer"},
+        }
+    ]
+    patch_collection_provider(monkeypatch, payloads)
+
+    assert football_data.collect_league()["status"] == "success"
+
+    with sqlite3.connect(database) as connection:
+        event = connection.execute(
+            """SELECT occurred_at_utc, timestamp_source, timestamp_precision
+               FROM match_events WHERE match_id = ?""",
+            (9001,),
+        ).fetchone()
+
+    assert event == (
+        "2026-11-25T18:12:00+00:00",
+        "elapsed_minute_from_kickoff",
+        "approximate",
+    )
 
 
 def test_exact_event_time_is_preserved(database):

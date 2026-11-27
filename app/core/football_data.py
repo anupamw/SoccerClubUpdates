@@ -592,7 +592,7 @@ def collect_league() -> dict[str, Any]:
         standings = _normalize_standings(standings_payload)
         matches: list[dict[str, Any]] = []
         for match_data in matches_payload.get("matches", []):
-            match, events = _normalize_match(match_data)
+            match, events = _normalize_match(match_data, include_events=True)
             match["events"] = events
             matches.append(match)
         team_ids = {team["id"] for team in teams}
