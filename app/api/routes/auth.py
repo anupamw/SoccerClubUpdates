@@ -5,7 +5,7 @@ import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.core import accounts
+from app.core import accounts, football_data
 from app.core.config import get_settings
 from app.core.security import get_authenticated_subject
 
@@ -28,6 +28,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class UpdateAccountRequest(BaseModel):
+    favorite_team_id: int | None = Field(..., gt=0)
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -36,6 +40,7 @@ class LoginResponse(BaseModel):
 class AccountResponse(BaseModel):
     username: str
     can_change_password: bool
+    favorite_team_id: int | None
 
 
 @router.post("/signup", status_code=201)
@@ -70,7 +75,30 @@ def login(payload: LoginRequest) -> LoginResponse:
 
 @router.get("/account", response_model=AccountResponse)
 def account(subject: str = Depends(get_authenticated_subject)) -> AccountResponse:
-    return AccountResponse(username=subject, can_change_password=accounts.get_account(subject) is not None)
+    return AccountResponse(
+        username=subject,
+        can_change_password=accounts.get_account(subject) is not None,
+        favorite_team_id=accounts.get_favorite_team_id(subject),
+    )
+
+
+@router.patch("/account", response_model=AccountResponse)
+def update_account(
+    payload: UpdateAccountRequest,
+    subject: str = Depends(get_authenticated_subject),
+) -> AccountResponse:
+    if payload.favorite_team_id is not None:
+        league = football_data.get_league_data()
+        if league["competition"] is None or not league["teams"]:
+            raise HTTPException(status_code=503, detail="League data is unavailable; try again after collection")
+        if not any(team["id"] == payload.favorite_team_id for team in league["teams"]):
+            raise HTTPException(status_code=422, detail="Favourite team is not in the current league data")
+    accounts.set_favorite_team_id(subject, payload.favorite_team_id)
+    return AccountResponse(
+        username=subject,
+        can_change_password=accounts.get_account(subject) is not None,
+        favorite_team_id=payload.favorite_team_id,
+    )
 
 
 @router.post("/change-password")

@@ -22,6 +22,10 @@
     .news { margin-top:14px }.news-head { display:flex;justify-content:space-between }.news-item { display:grid;grid-template-columns:56px 1fr auto;align-items:center;gap:12px;border-top:1px solid #eef1f4;padding:14px 0 }.news-mark { display:grid;width:56px;height:56px;place-items:center;border-radius:10px;background:#f1f3f6;color:var(--red);font-weight:800 }.news-item h3 { margin:0 0 5px;font-size:.92rem }.news-item p { margin:0;font-size:.75rem }.fake-page { min-height:260px }
     .data-status { display:flex;align-items:center;gap:10px;margin-bottom:14px;color:#596579;font-size:.82rem }.status-pill { border-radius:999px;padding:5px 10px;font-weight:800;text-transform:capitalize }.status-pill.fresh { background:#e3f5ec;color:#17613c }.status-pill.stale { background:#fff2d8;color:#8a6413 }.status-pill.unavailable { background:#fdebe8;color:#a32132 }.data-table { width:100%;border-collapse:collapse;font-size:.88rem }.data-table th,.data-table td { border-bottom:1px solid #eef1f4;padding:10px 8px;text-align:left;white-space:nowrap }.data-table th { color:#778295;font-size:.72rem;text-transform:uppercase;letter-spacing:.04em }.table-wrap { overflow:auto }.section-title { margin:20px 0 10px;font-size:1.05rem }.muted { color:#778295 }
     .table-wrap { max-height:65vh;overflow:auto }.table-wrap:focus-visible { outline:2px solid var(--red);outline-offset:2px }
+    .favorite-row,.favorite-match-row { background:#fff7e8 }.favorite-marker { display:inline-block;margin-left:8px;border-radius:999px;padding:3px 7px;background:#ffe5a8;color:#654600;font-size:.68rem;font-weight:800 }
+    .team-crest { display:inline-grid;width:30px;height:30px;flex:0 0 auto;place-items:center;overflow:hidden;border:1px solid #d5dbe3;border-radius:50%;background:#fff;color:var(--navy);font-size:.62rem;font-weight:800 }
+    .team-crest img { width:100%;height:100%;object-fit:contain }.team-crest.large { width:48px;height:48px;font-size:.8rem }
+    .favorite-preview,.team-heading { display:flex;align-items:center;gap:12px }.favorite-preview { margin-top:12px }.team-heading { margin-bottom:18px }.team-heading h2 { margin:0 0 4px }.team-heading p { margin:0;color:#778295 }
     @media(max-width:900px) {.cards{grid-template-columns:repeat(2,1fr)}.main-grid{grid-template-columns:1fr}.shell{grid-template-columns:200px 1fr}}@media(max-width:680px){.shell{display:block}.sidebar{padding:12px}.brand{padding:0 4px 10px}.nav-label{display:none}.nav{display:flex;overflow-x:auto}.nav button{min-width:max-content}.topbar{padding:0 18px}.content{padding:24px 18px}.cards{gap:8px}.welcome{align-items:start;flex-direction:column}.club-select{width:100%}.club-select select{flex:1}}
   </style>
 </head>
@@ -49,6 +53,7 @@
       <p class="nav-label">FOLLOW</p>
       <nav class="nav" aria-label="Main navigation">
         <button data-view="home" aria-current="true">◉ Overview</button>
+        <button data-view="favorite" id="favorite-nav" hidden></button>
         <button data-view="matches">▦ Matches</button>
         <button data-view="news">◫ News</button>
         <button data-view="squad">♙ Squad</button>
@@ -71,29 +76,106 @@
   <template id="news-template"><section class="welcome"><div><h2>Club news</h2><p>News coverage is outside the football-data.org integration.</p></div></section><article class="panel"><p>News is not collected in this release.</p></article></template>
   <template id="squad-template"><section class="welcome"><div><h2>Squad</h2><p>Squad coverage is outside the football-data.org integration.</p></div></section><article class="panel"><p>Squad data is not collected in this release.</p></article></template>
   <template id="table-template"><section class="welcome"><div><h2>Premier League table</h2><p>Current standings for every collected league team.</p></div></section><div id="table-content" aria-live="polite">Loading standings…</div></template>
-  <template id="password-template"><section class="welcome"><div><h2>Change password</h2><p>Update your account password.</p></div></section><article class="panel"><form id="password-form"><label for="current-password">Current password</label><input id="current-password" type="password" required><label for="new-password">New password</label><input id="new-password" type="password" minlength="8" required><button type="submit">Update password</button></form><p id="demo-notice" hidden>The demo account cannot change its password.</p></article></template>
+  <template id="favorite-template"><section class="welcome"><div><h2 id="favorite-heading">Favourite team</h2><p>Standings, recent results and upcoming fixtures for your team.</p></div></section><div id="favorite-content" aria-live="polite">Loading team data…</div></template>
+  <template id="password-template"><section class="welcome"><div><h2>Account</h2><p>Manage your favourite team and password.</p></div></section><article class="panel"><h3 class="section-title">Favourite team</h3><form id="favorite-form"><label for="favorite-team-select">Choose a favourite team</label><select id="favorite-team-select"><option value="">No favourite team</option></select><div id="favorite-preview" class="favorite-preview" aria-live="polite"></div><button type="submit">Save favourite team</button><p id="favorite-status" role="status" class="muted"></p></form></article><article class="panel"><h3 class="section-title">Change password</h3><form id="password-form"><label for="current-password">Current password</label><input id="current-password" type="password" required><label for="new-password">New password</label><input id="new-password" type="password" minlength="8" required><button type="submit">Update password</button></form><p id="demo-notice" hidden>The demo account cannot change its password.</p></article></template>
   <script>
     const authLayout=document.querySelector("#auth-layout"),authPanel=document.querySelector("#auth-panel"),shell=document.querySelector("#shell"),content=document.querySelector("#content"),notice=document.querySelector("#notice"),tokenKey="soccer-access-token";
-    const viewTitles={home:["Overview","Premier League"],matches:["Matches","All Premier League teams"],news:["Club news","Not included in this data integration"],squad:["Squad","Not included in this data integration"],table:["Premier League table","All current-season standings"],password:["Account","Update your password"]};
+    let currentUser="",favoriteTeamId=null,leagueCache=null;
+    const viewTitles={home:["Overview","Premier League"],favorite:["Favourite team","Team standings, recent results and upcoming fixtures"],matches:["Matches","All Premier League teams"],news:["Club news","Not included in this data integration"],squad:["Squad","Not included in this data integration"],table:["Premier League table","All current-season standings"],password:["Account","Manage your favourite team and password"]};
     function showNotice(message,kind=""){notice.textContent=message;notice.className=kind}
     async function request(path,options={}){const headers=new Headers(options.headers||{});if(options.body)headers.set("Content-Type","application/json");const token=sessionStorage.getItem(tokenKey);if(token)headers.set("Authorization",`Bearer ${token}`);const response=await fetch(path,{...options,headers});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"Request failed");return data}
     function showSignedOut(){sessionStorage.removeItem(tokenKey);shell.hidden=true;authLayout.hidden=false;document.querySelector("#signin-form").hidden=false;document.querySelector("#signup-form").hidden=true}
     function escapeHtml(value){return String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
     function formatKickoff(value){const date=new Date(value);return Number.isNaN(date.getTime())?escapeHtml(value):new Intl.DateTimeFormat(undefined,{year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:"UTC",timeZoneName:"short"}).format(date)}
     function freshnessMarkup(status){const stamp=status.last_updated?` · Last updated ${formatKickoff(status.last_updated)}`:"";const error=status.error_summary?` · ${escapeHtml(status.error_summary)}`:"";return `<div class="data-status"><span class="status-pill ${escapeHtml(status.freshness)}">${escapeHtml(status.freshness)}</span><span>Collection mode: ${escapeHtml(status.mode)}${stamp} · ${escapeHtml(status.provider_calls_remaining)} provider calls remain this hour${error}</span></div>`}
-    function standingsTable(rows,label="League standings"){return `<div class="table-wrap" role="region" aria-label="${escapeHtml(label)}" tabindex="0"><table class="data-table"><thead><tr><th>Pos</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${escapeHtml(row.position)}</td><td>${escapeHtml(row.team_name)}</td><td>${escapeHtml(row.played_games)}</td><td>${escapeHtml(row.won)}</td><td>${escapeHtml(row.draw)}</td><td>${escapeHtml(row.lost)}</td><td>${escapeHtml(row.goal_difference)}</td><td><strong>${escapeHtml(row.points)}</strong></td></tr>`).join("")}</tbody></table></div>`}
-    function matchesTable(rows){return `<div class="table-wrap" role="region" aria-label="All league matches" tabindex="0"><table class="data-table"><thead><tr><th>Kickoff (UTC)</th><th>Home</th><th>Score</th><th>Away</th><th>Status</th><th>Venue</th></tr></thead><tbody>${rows.map(match=>`<tr><td>${match.utc_date?formatKickoff(match.utc_date):"—"}</td><td>${escapeHtml(match.home_team_name)}</td><td>${escapeHtml(match.home_score??"—")} – ${escapeHtml(match.away_score??"—")}</td><td>${escapeHtml(match.away_team_name)}</td><td>${escapeHtml(match.status)}</td><td>${escapeHtml(match.venue||"—")}</td></tr>`).join("")}</tbody></table></div>`}
+    function standingsTable(rows,label="League standings",highlightTeamId=null){return `<div class="table-wrap" role="region" aria-label="${escapeHtml(label)}" tabindex="0"><table class="data-table"><thead><tr><th>Pos</th><th>Club</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th></tr></thead><tbody>${rows.map(row=>`<tr${row.team_id===highlightTeamId?' class="favorite-row"':''}><td>${escapeHtml(row.position)}</td><td>${escapeHtml(row.team_name)}${row.team_id===highlightTeamId?'<span class="favorite-marker">Favourite</span>':""}</td><td>${escapeHtml(row.played_games)}</td><td>${escapeHtml(row.won)}</td><td>${escapeHtml(row.draw)}</td><td>${escapeHtml(row.lost)}</td><td>${escapeHtml(row.goal_difference)}</td><td><strong>${escapeHtml(row.points)}</strong></td></tr>`).join("")}</tbody></table></div>`}
+    function matchesTable(rows,label="All league matches",highlightTeamId=null){return `<div class="table-wrap" role="region" aria-label="${escapeHtml(label)}" tabindex="0"><table class="data-table"><thead><tr><th>Kickoff (UTC)</th><th>Home</th><th>Score</th><th>Away</th><th>Status</th><th>Venue</th></tr></thead><tbody>${rows.map(match=>{const homeFavorite=match.home_team_id===highlightTeamId,awayFavorite=match.away_team_id===highlightTeamId;return `<tr${homeFavorite||awayFavorite?' class="favorite-match-row"':''}><td>${match.utc_date?formatKickoff(match.utc_date):"—"}</td><td>${escapeHtml(match.home_team_name)}${homeFavorite?'<span class="favorite-marker">Favourite</span>':""}</td><td>${escapeHtml(match.home_score??"—")} – ${escapeHtml(match.away_score??"—")}</td><td>${escapeHtml(match.away_team_name)}${awayFavorite?'<span class="favorite-marker">Favourite</span>':""}</td><td>${escapeHtml(match.status)}</td><td>${escapeHtml(match.venue||"—")}</td></tr>`}).join("")}</tbody></table></div>`}
     function overviewMarkup(data){
       const competition=data.competition,season=data.season;
       if(!competition||!season)return `<article class="panel"><p>League data is unavailable. The collector has not completed a successful run.</p></article>`;
-      const recent=data.matches.filter(match=>match.status==="FINISHED").slice(-5).reverse(),upcoming=data.matches.filter(match=>["TIMED","SCHEDULED"].includes(match.status)).slice(0,5);
-      const fixtureRows=matches=>matches.length?matchesTable(matches):`<p class="muted">No fixtures in this category are available.</p>`;
-      return `<section class="cards"><article class="panel"><span class="metric-label">Competition</span><p class="metric">${escapeHtml(competition.name)}</p><span class="metric-change">${escapeHtml(competition.code)}</span></article><article class="panel"><span class="metric-label">Season</span><p class="metric">${escapeHtml(season.start_date||"—")}</p><span class="metric-change">Through ${escapeHtml(season.end_date||"—")}</span></article><article class="panel"><span class="metric-label">Teams</span><p class="metric">${escapeHtml(data.teams.length)}</p><span class="metric-change">Premier League</span></article><article class="panel"><span class="metric-label">Current matchday</span><p class="metric">${escapeHtml(season.current_matchday||"—")}</p><span class="metric-change">Competition schedule</span></article></section><article class="panel"><h3 class="section-title">Standings snapshot</h3>${standingsTable(data.standings,"All league standings")}</article><article class="panel news"><h3 class="section-title">Recent results</h3>${fixtureRows(recent)}</article><article class="panel news"><h3 class="section-title">Upcoming fixtures</h3>${fixtureRows(upcoming)}</article>`;
+      const recent=data.matches.filter(match=>match.status==="FINISHED").slice(-10).reverse(),upcoming=data.matches.filter(match=>["TIMED","SCHEDULED"].includes(match.status)).slice(0,10);
+      const fixtureRows=(matches,label)=>matches.length?matchesTable(matches,label,favoriteTeamId):`<p class="muted">No fixtures in this category are available.</p>`;
+      return `<section class="cards"><article class="panel"><span class="metric-label">Competition</span><p class="metric">${escapeHtml(competition.name)}</p><span class="metric-change">${escapeHtml(competition.code)}</span></article><article class="panel"><span class="metric-label">Season</span><p class="metric">${escapeHtml(season.start_date||"—")}</p><span class="metric-change">Through ${escapeHtml(season.end_date||"—")}</span></article><article class="panel"><span class="metric-label">Teams</span><p class="metric">${escapeHtml(data.teams.length)}</p><span class="metric-change">Premier League</span></article><article class="panel"><span class="metric-label">Current matchday</span><p class="metric">${escapeHtml(season.current_matchday||"—")}</p><span class="metric-change">Competition schedule</span></article></section><article class="panel"><h3 class="section-title">Standings snapshot</h3>${standingsTable(data.standings,"All league standings",favoriteTeamId)}</article><article class="panel news"><h3 class="section-title">Recent results</h3>${fixtureRows(recent,"Overview recent results")}</article><article class="panel news"><h3 class="section-title">Upcoming fixtures</h3>${fixtureRows(upcoming,"Overview upcoming fixtures")}</article>`;
     }
-    async function loadLeagueData(view){const target=content.querySelector(`#${view==="home"?"overview":view}-content`);if(!target)return;try{const data=await request("/api/v1/league");if(document.querySelector("#page-title").textContent!==viewTitles[view][0])return;const status=data.collection_status;let body;if(status.freshness==="unavailable"||!data.competition){body=`<article class="panel"><p>League data is unavailable. The collector has not completed a successful run.</p></article>`}else if(view==="home"){body=overviewMarkup(data)}else if(view==="matches"){body=data.matches.length?matchesTable(data.matches):`<article class="panel"><p>No fixtures or results are available yet.</p></article>`}else{body=data.standings.length?standingsTable(data.standings):`<article class="panel"><p>No standings are available yet.</p></article>`}target.innerHTML=freshnessMarkup(status)+body}catch(error){if(document.querySelector("#page-title").textContent===viewTitles[view][0])target.innerHTML=`<article class="panel"><p role="status">League data could not be loaded: ${escapeHtml(error.message)}</p></article>`}}
-    function setView(view){const template=document.querySelector(`#${view}-template`);if(!template)return;const title=viewTitles[view];document.querySelector("#page-title").textContent=title[0];document.querySelector("#page-subtitle").textContent=title[1];content.replaceChildren(template.content.cloneNode(true));document.querySelectorAll(".nav button").forEach(button=>{if(button.dataset.view===view)button.setAttribute("aria-current","true");else button.removeAttribute("aria-current")});if(view==="home")content.querySelector("#welcome-user").textContent=currentUser;if(["home","matches","table"].includes(view))loadLeagueData(view);if(view==="password")bindPasswordForm()}
-    async function showSignedIn(){const account=await request("/auth/account");currentUser=account.username;authLayout.hidden=true;shell.hidden=false;setView("home")}
-    let currentUser="";
+    function favoriteTeamMarkup(data){
+      if(favoriteTeamId===null)return `<article class="panel"><p>Select a favourite team from Account to see team-specific data.</p></article>`;
+      const team=data.teams.find(item=>item.id===favoriteTeamId);
+      if(!team)return `<article class="panel"><p>Your saved favourite team is not available in the current league data.</p></article>`;
+      const standing=data.standings.find(row=>row.team_id===favoriteTeamId);
+      const involved=match=>match.home_team_id===favoriteTeamId||match.away_team_id===favoriteTeamId;
+      const kickoff=match=>new Date(match.utc_date||0).getTime()||0;
+      const recent=data.matches.filter(match=>involved(match)&&match.status==="FINISHED").sort((a,b)=>kickoff(b)-kickoff(a)).slice(0,10);
+      const upcoming=data.matches.filter(match=>involved(match)&&["TIMED","SCHEDULED"].includes(match.status)).sort((a,b)=>kickoff(a)-kickoff(b)).slice(0,10);
+      return `<section class="team-heading"><div id="favorite-team-crest"></div><div><h2>${escapeHtml(team.name)}</h2><p>Team standings, recent results and upcoming fixtures</p></div></section>${standing?`<article class="panel"><h3 class="section-title">League standing</h3>${standingsTable([standing],"Favourite team standing",favoriteTeamId)}</article>`:`<article class="panel"><p>No current league standing is available for ${escapeHtml(team.name)}.</p></article>`}<article class="panel news"><h3 class="section-title">Recent results</h3>${recent.length?matchesTable(recent,`${team.name} recent results`):`<p class="muted">No recent results are available for ${escapeHtml(team.name)}.</p>`}</article><article class="panel news"><h3 class="section-title">Upcoming fixtures</h3>${upcoming.length?matchesTable(upcoming,`${team.name} upcoming fixtures`):`<p class="muted">No upcoming fixtures are available for ${escapeHtml(team.name)}.</p>`}</article>`;
+    }
+    function getFavoriteTeam(){return leagueCache?.teams.find(team=>team.id===favoriteTeamId)||null}
+    function safeCrestUrl(value){try{const url=new URL(value);return url.protocol==="https:"?url.href:null}catch{return null}}
+    function teamInitials(name){return String(name||"").split(/\s+/).filter(Boolean).slice(0,3).map(word=>word[0]).join("").toUpperCase()||"FC"}
+    function createTeamBadge(team,large=false){
+      const badge=document.createElement("span");badge.className=`team-crest${large?" large":""}`;badge.setAttribute("aria-hidden","true");
+      const initials=teamInitials(team?.name),crest=safeCrestUrl(team?.crest);
+      if(!crest){badge.textContent=initials;return badge}
+      const image=document.createElement("img");image.src=crest;image.alt="";
+      image.addEventListener("error",()=>{badge.replaceChildren();badge.textContent=initials},{once:true});badge.append(image);return badge;
+    }
+    function renderFavoriteNavigation(){
+      const button=document.querySelector("#favorite-nav");
+      if(favoriteTeamId===null){button.hidden=true;button.replaceChildren();return}
+      const team=getFavoriteTeam();button.hidden=false;button.setAttribute("aria-label",team?.name||"Favourite team");button.replaceChildren(createTeamBadge(team),document.createTextNode(team?.name||"Favourite team"));
+    }
+    function populateFavoriteTeams(data){
+      const select=content.querySelector("#favorite-team-select");if(!select)return;
+      select.replaceChildren();const empty=document.createElement("option");empty.value="";empty.textContent="No favourite team";select.append(empty);
+      const teams=[...(data?.teams||[])].sort((a,b)=>a.name.localeCompare(b.name));
+      if(favoriteTeamId!==null&&!teams.some(team=>team.id===favoriteTeamId)){const saved=document.createElement("option");saved.value=String(favoriteTeamId);saved.textContent=`Saved team ${favoriteTeamId} (not in current data)`;select.append(saved)}
+      for(const team of teams){const option=document.createElement("option");option.value=String(team.id);option.textContent=team.name;select.append(option)}
+      select.value=favoriteTeamId===null?"":String(favoriteTeamId);
+      updateFavoritePreview();
+    }
+    function updateFavoritePreview(){
+      const preview=content.querySelector("#favorite-preview"),select=content.querySelector("#favorite-team-select");if(!preview||!select)return;
+      const team=leagueCache?.teams.find(item=>String(item.id)===select.value);preview.replaceChildren();
+      if(team){preview.append(createTeamBadge(team,true));const label=document.createElement("span");label.textContent=team.name;preview.append(label)}
+    }
+    async function loadFavoriteSettings(){
+      const status=content.querySelector("#favorite-status"),form=content.querySelector("#favorite-form");if(!form)return;
+      form.onsubmit=async event=>{event.preventDefault();const select=content.querySelector("#favorite-team-select");const selected=select.value?Number(select.value):null;try{const account=await request("/auth/account",{method:"PATCH",body:JSON.stringify({favorite_team_id:selected})});favoriteTeamId=account.favorite_team_id;renderFavoriteNavigation();populateFavoriteTeams(leagueCache);status.textContent=favoriteTeamId===null?"Favourite team cleared.":"Favourite team saved.";showNotice(status.textContent,"success")}catch(error){status.textContent=error.message;showNotice(error.message,"error")}};
+      content.querySelector("#favorite-team-select").onchange=updateFavoritePreview;
+      const [accountResult,leagueResult]=await Promise.allSettled([request("/auth/account"),request("/api/v1/league")]);
+      if(accountResult.status==="fulfilled"){favoriteTeamId=accountResult.value.favorite_team_id;renderFavoriteNavigation()}
+      if(leagueResult.status==="fulfilled"){leagueCache=leagueResult.value;renderFavoriteNavigation();populateFavoriteTeams(leagueCache);status.textContent=leagueCache.teams.length?"Choose a team or clear your favourite.":"Team choices will be available after league data is collected."}
+      else{leagueCache=null;populateFavoriteTeams(null);status.textContent=`League teams could not be loaded: ${leagueResult.reason.message}`}
+      if(accountResult.status==="rejected")status.textContent=`Account preferences could not be loaded: ${accountResult.reason.message}`;
+    }
+    async function loadLeagueData(view){
+      const target=content.querySelector(`#${view==="home"?"overview":view}-content`);if(!target)return;
+      try{
+        const data=await request("/api/v1/league");if(!content.contains(target))return;
+        leagueCache=data;renderFavoriteNavigation();
+        const status=data.collection_status;let body;
+        if(view==="favorite"){body=favoriteTeamMarkup(data)}
+        else if(status.freshness==="unavailable"||!data.competition){body=`<article class="panel"><p>League data is unavailable. The collector has not completed a successful run.</p></article>`}
+        else if(view==="home"){body=overviewMarkup(data)}
+        else if(view==="matches"){body=data.matches.length?matchesTable(data.matches):`<article class="panel"><p>No fixtures or results are available yet.</p></article>`}
+        else{body=data.standings.length?standingsTable(data.standings):`<article class="panel"><p>No standings are available yet.</p></article>`}
+        target.innerHTML=freshnessMarkup(status)+body;
+        if(view==="favorite"){
+          const team=getFavoriteTeam();const heading=content.querySelector("#favorite-heading");
+          if(team){document.querySelector("#page-title").textContent=team.name;document.querySelector("#page-subtitle").textContent="Team standings, recent results and upcoming fixtures";if(heading)heading.textContent=team.name;const crestTarget=content.querySelector("#favorite-team-crest");if(crestTarget)crestTarget.append(createTeamBadge(team,true))}
+          else if(heading){document.querySelector("#page-title").textContent="Favourite team"}
+        }
+      }catch(error){if(content.contains(target))target.innerHTML=`<article class="panel"><p role="status">League data could not be loaded: ${escapeHtml(error.message)}</p></article>`}
+    }
+    function setView(view){
+      const template=document.querySelector(`#${view}-template`);if(!template)return;
+      const title=view==="favorite"?[getFavoriteTeam()?.name||"Favourite team","Team standings, recent results and upcoming fixtures"]:viewTitles[view];
+      document.querySelector("#page-title").textContent=title[0];document.querySelector("#page-subtitle").textContent=title[1];content.replaceChildren(template.content.cloneNode(true));
+      document.querySelectorAll(".nav button").forEach(button=>{if(button.dataset.view===view)button.setAttribute("aria-current","true");else button.removeAttribute("aria-current")});
+      if(view==="home")content.querySelector("#welcome-user").textContent=currentUser;
+      if(["home","favorite","matches","table"].includes(view))loadLeagueData(view);
+      if(view==="password"){bindPasswordForm();loadFavoriteSettings()}
+    }
+    async function showSignedIn(){const account=await request("/auth/account");currentUser=account.username;favoriteTeamId=account.favorite_team_id;renderFavoriteNavigation();authLayout.hidden=true;shell.hidden=false;setView("home")}
     document.querySelector("#signin-tab").onclick=()=>{document.querySelector("#signin-form").hidden=false;document.querySelector("#signup-form").hidden=true};
     document.querySelector("#signup-tab").onclick=()=>{document.querySelector("#signin-form").hidden=true;document.querySelector("#signup-form").hidden=false};
     document.querySelector("#signin-form").onsubmit=async event=>{event.preventDefault();const formElement=event.currentTarget;try{const result=await request("/auth/login",{method:"POST",body:JSON.stringify({username:document.querySelector("#username").value,password:document.querySelector("#password").value})});sessionStorage.setItem(tokenKey,result.access_token);formElement.reset();await showSignedIn();showNotice("You are signed in.","success")}catch(error){showNotice(error.message,"error")}};

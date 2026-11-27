@@ -45,7 +45,31 @@ def _connect() -> sqlite3.Connection:
     connection = sqlite3.connect(path, timeout=5)
     connection.row_factory = sqlite3.Row
     connection.execute("CREATE TABLE IF NOT EXISTS accounts (username TEXT PRIMARY KEY, password_hash TEXT NOT NULL, created_at TEXT NOT NULL)")
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS user_preferences (username TEXT PRIMARY KEY, favorite_team_id INTEGER)"
+    )
     return connection
+
+
+def get_favorite_team_id(username: str) -> int | None:
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT favorite_team_id FROM user_preferences WHERE username = ?",
+            (username,),
+        ).fetchone()
+    return None if row is None else row["favorite_team_id"]
+
+
+def set_favorite_team_id(username: str, team_id: int | None) -> None:
+    with closing(_connect()) as connection, connection:
+        if team_id is None:
+            connection.execute("DELETE FROM user_preferences WHERE username = ?", (username,))
+            return
+        connection.execute(
+            """INSERT INTO user_preferences (username, favorite_team_id) VALUES (?, ?)
+               ON CONFLICT(username) DO UPDATE SET favorite_team_id = excluded.favorite_team_id""",
+            (username, team_id),
+        )
 
 
 def get_account(username: str) -> Account | None:
